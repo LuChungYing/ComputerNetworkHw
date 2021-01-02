@@ -1,0 +1,80 @@
+case 3:
+		while(1){
+				for(int i=0;i<259;i++){
+					printf("%d",isack[i]);
+					if(!(i%5)) printf(" ");
+				}
+				printf("\n");
+				duplicate = 0;
+				newack = 0;
+				timeout = 0;
+				printf("Max_ack=%d\n",Max_ack);
+				int tcwnd=cwnd;
+				ser_seq = Max_ack;
+				ser_ack = Max_seq+1;
+				num = (Max_ack-1) * 1004;
+				times = Max_ack;
+				for(int z=0;z<tcwnd;z++){
+					memset(pack,0,sizeof(segment));
+					int i=0;
+					if(times<258){
+					while(i<1004){
+						pack->data[i]=video3[num];num++;i++;
+						}
+					}
+					pack->head.seq=ser_seq++;
+					pack->head.ACK=ser_ack++;
+					if(pack->head.seq > 258) {pack->head.seq=258;ser_seq=259;}
+					if(times>=258){
+						pack->head.finish=1;
+					}
+					else
+						pack->head.finish=0;
+					times++;
+					printf("cwnd = %d\n",cwnd);
+					int loss = (rand()%20);
+					if(isack[ser_seq-1] && ser_seq !=259) {z--;continue;}
+					if(loss == 5) printf("lose %d \n",ser_seq-1);
+					if(loss != 5){
+						if ((n=sendto(fd, pack, sizeof(segment), 0, (struct sockaddr*)&client, length)) < 0) perror("Could not send datagram!!\n");
+						else
+							{memset(pack,0,sizeof(segment));printf("Send a packet to %s : %d (seq_num=%d, ack_num=%d)\n",buffer,client.sin_port,ser_seq-1,ser_ack-1);}
+					}
+					if(times>259) break;
+			 }
+			 		ser_seq--;
+					ser_ack--;
+
+					for(int i=0;i<tcwnd;i++){
+						duplicate=0;
+						newack=0;
+						timeout=0;
+						if (recvfrom(fd, pack, sizeof(segment), 0, (struct sockaddr*)&client , &length) <0) {
+							//timeout
+							timeout=1;
+							printf("No recive ACK %d\n",ser_seq+1);
+							continue;
+						}
+						isack[pack->head.ACK-1]=1;
+						int sacklen = pack->sack.length;
+						for(int i=0;i<sacklen;i++){
+							for(int x=0;x<300;x++){
+									if(pack->sack.left[i] <= x && x <= pack->sack.right[i] || x < Max_ack)
+										isack[x]=1;
+							}
+						}
+						  if(Max_ack == pack->head.ACK) duplicate = 1;
+							if(Max_ack < pack->head.ACK){
+								newack = pack->head.ACK - Max_ack;
+								Max_ack = pack->head.ACK;
+								Max_seq = pack->head.seq;
+							}
+						printf("Recive a packet(ACK) from %s : %d\n",buffer, client.sin_port);
+						printf("\t Recive a packet (seq_num = %d, ack_num = %d)\n",pack->head.seq,pack->head.ACK);
+						cwnd = congestion_control(duplicate, newack, timeout);
+						if(pack->head.ACK == ser_seq + 1) break;
+					}
+							if(Max_ack >= 259 || pack->head.ACK >= 259) break;
+		}memset(pack,0,sizeof(pack));
+		printf("=============transmit Complete=============\n");
+		

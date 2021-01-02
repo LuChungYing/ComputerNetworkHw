@@ -1,0 +1,4 @@
+for i in {1..4};
+do
+    `./client 127.0.0.1 12500 -f $i;`
+done
